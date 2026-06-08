@@ -90,15 +90,11 @@ pub fn add_utxo(utxos: Vec<Utxo>, new_utxo: Utxo) -> Vec<Utxo> {
 /// Find the first transaction with a fee greater than 0.005 BTC.
 pub fn find_high_fee(fee_list: &[f64]) -> Option<(usize, f64)> {
     // TODO: Iterate with enumerate and return the first (index, fee) where fee > 0.005
-    let mut i = 0;
-    while i < fee_list.len() {
-        let fee = fee_list[i];
-        if fee > 0.005 {
-            return Some((i, fee));
-        }
-        i += 1;
-    }
-    None
+    fee_list
+        .iter()
+        .enumerate()
+        .find(|(_, fee)| **fee > 0.005)
+        .map(|(i, fee)| (i, *fee))
 }
 
 /// Return basic wallet details as a tuple of (name, balance).
@@ -170,6 +166,7 @@ pub fn validate_block_height(height: i64) -> (bool, String) {
 pub fn halving_schedule(blocks: &[u64]) -> HashMap<u64, u64> {
     // TODO: Base reward is 50 * 100_000_000 sats; halving interval is 210_000 blocks
     // TODO: For each block: halvings = block / 210_000; reward = base >> halvings
+    // TODO: Account for reward depletion: reward reaches 0 at block 6,930,000 (33rd halving)
     // TODO: Insert (block, reward) into the result HashMap
     let base_reward: u64 = 50 * 100_000_000;
     let mut result = HashMap::new();
@@ -189,24 +186,11 @@ pub fn find_utxo_with_min_value(utxos: &[Utxo], target: u64) -> Option<Utxo> {
     // TODO: Filter UTXOs to those with value >= target
     // TODO: Return the one with the smallest value, or None if none qualify
     // todo!()
-    // start at nothing found yet
-    let mut best: Option<Utxo> = None;
-    let mut i = 0;
-    while i < utxos.len() {
-        let utxo = utxos[i].clone();
-        if utxo.value >= target {
-            match &best {
-                None => best = Some(utxo),
-                Some(current) => {
-                    if utxo.value < current.value {
-                        best = Some(utxo);
-                    }
-                }
-            }
-        }
-        i += 1;
-    }
-    best
+    utxos
+        .iter()
+        .filter(|utxo| utxo.value >= target)
+        .min_by_key(|utxo| utxo.value)
+        .cloned()
 }
 
 /// Create a UTXO map from txid, vout, and arbitrary extra string fields.
